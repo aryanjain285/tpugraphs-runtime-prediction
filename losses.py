@@ -208,8 +208,12 @@ class CombinedRankingLoss(nn.Module):
 def build_loss(loss_type: str, **kwargs) -> nn.Module:
     """Factory for loss functions."""
     if loss_type == "listmle":
+        kwargs.pop("aux_weight", None)
+        kwargs.pop("margin", None)
+        kwargs.pop("num_pairs", None)
         return CombinedRankingLoss(primary="listmle", aux_weight=0.0, **kwargs)
     elif loss_type == "pairwise":
+        kwargs.pop("aux_weight", None)
         return CombinedRankingLoss(primary="pairwise", aux_weight=0.0, **kwargs)
     elif loss_type == "combined":
         return CombinedRankingLoss(**kwargs)
