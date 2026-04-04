@@ -73,9 +73,7 @@ def topk_slowdown(scores: np.ndarray, runtimes: np.ndarray, k: int = 5) -> float
 def opa_score(scores: np.ndarray, runtimes: np.ndarray) -> float:
     """
     OPA (Ordered Pair Accuracy) — fraction of correctly ordered pairs.
-
-    For all pairs (i, j) where runtime_i < runtime_j, check whether
-    score_i > score_j.
+    Vectorized implementation using Kendall tau concordance.
 
     Parameters
     ----------
@@ -90,15 +88,12 @@ def opa_score(scores: np.ndarray, runtimes: np.ndarray) -> float:
     if n < 2:
         return 1.0
 
-    correct = 0
-    total = 0
-    for i in range(n):
-        for j in range(i + 1, n):
-            if runtimes[i] != runtimes[j]:
-                total += 1
-                if (runtimes[i] < runtimes[j]) == (scores[i] > scores[j]):
-                    correct += 1
-    return correct / max(total, 1)
+    # Use scipy's kendalltau which is O(n log n)
+    tau, _ = kendalltau(-scores, runtimes)
+    if np.isnan(tau):
+        return 0.5
+    # Convert tau ∈ [-1,1] to OPA ∈ [0,1]: opa = (tau + 1) / 2
+    return float((tau + 1.0) / 2.0)
 
 
 def kendall_tau(scores: np.ndarray, runtimes: np.ndarray) -> float:
@@ -128,11 +123,6 @@ def evaluate_tile(
 ) -> Dict[str, float]:
     """
     Evaluate tile model on a dataset split.
-
-    Returns
-    -------
-    metrics : dict with keys 'slowdown_1', 'slowdown_5', 'slowdown_10',
-              'kendall_tau', 'opa'.
     """
     model.eval()
     slowdowns = {1: [], 5: [], 10: []}
@@ -153,6 +143,9 @@ def evaluate_tile(
             taus.append(kendall_tau(scores, runtimes))
             opas.append(opa_score(scores, runtimes))
 
+            if (idx + 1) % 100 == 0:
+                print(f"    Validated {idx+1}/{len(dataset)} graphs...", flush=True)
+
     return {
         "slowdown_1": np.mean(slowdowns[1]),
         "slowdown_5": np.mean(slowdowns[5]),
@@ -167,10 +160,6 @@ def evaluate_layout(
 ) -> Dict[str, float]:
     """
     Evaluate layout model on a dataset split.
-
-    Returns
-    -------
-    metrics : dict with keys 'kendall_tau', 'opa'.
     """
     model.eval()
     taus = []
@@ -185,6 +174,9 @@ def evaluate_layout(
 
             taus.append(kendall_tau(scores, runtimes))
             opas.append(opa_score(scores, runtimes))
+
+            if (idx + 1) % 10 == 0:
+                print(f"    Validated {idx+1}/{len(dataset)} graphs...", flush=True)
 
     return {
         "kendall_tau": np.mean(taus),

@@ -16,7 +16,7 @@ import os
 import argparse
 import torch
 import numpy as np
-from tqdm import tqdm
+
 
 from config import LayoutConfig, ensure_dirs
 from dataset import LayoutDataset
@@ -53,9 +53,8 @@ def train_one_epoch(
     skipped = 0
 
     indices = np.random.permutation(num_graphs)
-    pbar = tqdm(indices, desc=f"Epoch {epoch}", leave=False)
 
-    for idx in pbar:
+    for step, idx in enumerate(indices):
         data = dataset[int(idx)]
 
         # Skip graphs with too few configs for ranking
@@ -89,7 +88,9 @@ def train_one_epoch(
         optimizer.step()
 
         total_loss += loss.item()
-        pbar.set_postfix(loss=f"{loss.item():.4f}")
+
+        if (step + 1) % 50 == 0:
+            print(f"    Step {step+1}/{num_graphs}, loss: {loss.item():.4f}", flush=True)
 
     processed = num_graphs - skipped
     avg_loss = total_loss / max(processed, 1)

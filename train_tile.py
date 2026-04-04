@@ -13,7 +13,7 @@ import os
 import argparse
 import torch
 import numpy as np
-from tqdm import tqdm
+
 
 from config import TileConfig, ensure_dirs
 from dataset import TileDataset
@@ -48,8 +48,7 @@ def train_one_epoch(
 
     indices = np.random.permutation(num_graphs)
 
-    pbar = tqdm(indices, desc=f"Epoch {epoch}", leave=False)
-    for idx in pbar:
+    for step, idx in enumerate(indices):
         data = dataset[int(idx)]
         data = data.to(device)
 
@@ -68,7 +67,9 @@ def train_one_epoch(
         optimizer.step()
 
         total_loss += loss.item()
-        pbar.set_postfix(loss=f"{loss.item():.4f}")
+
+        if (step + 1) % 500 == 0:
+            print(f"    Step {step+1}/{num_graphs}, loss: {loss.item():.4f}", flush=True)
 
     avg_loss = total_loss / max(num_graphs, 1)
     return avg_loss
