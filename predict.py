@@ -18,7 +18,6 @@ import argparse
 import torch
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
 
 from config import (
     TileConfig, LayoutConfig, ALL_LAYOUT_COLLECTIONS,
@@ -81,7 +80,9 @@ def predict_tile(cfg: TileConfig, variant: str, top_k: int, device: torch.device
 
     results = []
     with torch.no_grad():
-        for idx in tqdm(range(len(test_ds)), desc="tile:xla"):
+        for idx in range(len(test_ds)):
+            if (idx + 1) % 100 == 0:
+                print(f"  tile:xla {idx+1}/{len(test_ds)}", flush=True)
             data = test_ds[idx]
             graph_id = data.graph_id
             data = data.to(device)
@@ -121,7 +122,9 @@ def predict_layout(
 
     results = []
     with torch.no_grad():
-        for idx in tqdm(range(len(test_ds)), desc=collection):
+        for idx in range(len(test_ds)):
+            if (idx + 1) % 10 == 0:
+                print(f"  {collection} {idx+1}/{len(test_ds)}", flush=True)
             data = test_ds[idx]
             graph_id = data.graph_id
             data = data.to(device)

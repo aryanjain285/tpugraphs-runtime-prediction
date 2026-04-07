@@ -7,8 +7,6 @@
 #PBS -j oe
 #PBS -o tpugraphs_quick.log
 
-# Quick version — fewer epochs for testing (~1-2 hours on A100)
-
 cd $PBS_O_WORKDIR
 
 module load miniforge3
@@ -17,15 +15,22 @@ conda activate tpugraphs
 
 echo "=== TpuGraphs Quick Training (NSCC) ==="
 echo "Node: $(hostname) | GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null)"
+echo "Time: $(date)"
 echo ""
 
-python3 train_tile.py --epochs 25
-python3 train_layout.py --source xla --search default --epochs 15
-python3 train_layout.py --source xla --search random --epochs 15
-python3 train_layout.py --source nlp --search default --epochs 15
-python3 train_layout.py --source nlp --search random --epochs 15
-python3 predict.py
-python3 combine_submissions.py
+if [ ! -d "data/npz_all/npz/tile/xla/train" ]; then
+    echo "ERROR: Data not found."
+    exit 1
+fi
 
+python3 train_tile.py --epochs 25 2>&1
+python3 train_layout.py --source xla --search default --epochs 15 2>&1
+python3 train_layout.py --source xla --search random --epochs 15 2>&1
+python3 train_layout.py --source nlp --search default --epochs 15 2>&1
+python3 train_layout.py --source nlp --search random --epochs 15 2>&1
+python3 predict.py 2>&1
+python3 combine_submissions.py 2>&1
+
+echo ""
 echo "Done! $(date)"
 echo "Submission: outputs/submission/final_submission.csv"

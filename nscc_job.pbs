@@ -7,9 +7,9 @@
 #PBS -j oe
 #PBS -o tpugraphs_train.log
 
-# ─── Setup ───
 cd $PBS_O_WORKDIR
 
+# Load environment
 module load miniforge3
 eval "$(conda shell.bash hook)"
 conda activate tpugraphs
@@ -23,32 +23,37 @@ echo "Dir:  $(pwd)"
 echo "Time: $(date)"
 echo ""
 
-# ─── Train all 5 sub-collections ───
+# Verify data exists
+if [ ! -d "data/npz_all/npz/tile/xla/train" ]; then
+    echo "ERROR: Data not found. Run: mkdir -p data && unzip -q predict-ai-model-runtime.zip -d data/"
+    exit 1
+fi
 
+# Train all 5 sub-collections
 echo "[1/5] Training tile:xla..."
-python3 train_tile.py --epochs 80
+python3 train_tile.py --epochs 80 2>&1
 echo ""
 
 echo "[2/5] Training layout:xla:default..."
-python3 train_layout.py --source xla --search default --epochs 60
+python3 train_layout.py --source xla --search default --epochs 60 2>&1
 echo ""
 
 echo "[3/5] Training layout:xla:random..."
-python3 train_layout.py --source xla --search random --epochs 60
+python3 train_layout.py --source xla --search random --epochs 60 2>&1
 echo ""
 
 echo "[4/5] Training layout:nlp:default..."
-python3 train_layout.py --source nlp --search default --epochs 60
+python3 train_layout.py --source nlp --search default --epochs 60 2>&1
 echo ""
 
 echo "[5/5] Training layout:nlp:random..."
-python3 train_layout.py --source nlp --search random --epochs 60
+python3 train_layout.py --source nlp --search random --epochs 60 2>&1
 echo ""
 
-# ─── Generate submission ───
+# Generate submission
 echo "Generating predictions..."
-python3 predict.py
-python3 combine_submissions.py
+python3 predict.py 2>&1
+python3 combine_submissions.py 2>&1
 
 echo ""
 echo "=============================================="
