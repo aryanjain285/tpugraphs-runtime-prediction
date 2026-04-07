@@ -311,11 +311,13 @@ class LayoutModel(nn.Module):
             return self.backbone(node_feat, node_opcode, topo_depth, edge_index)
 
         # Build segments from node_splits
-        split_pts = node_splits.cpu().numpy().tolist()
-        if split_pts[0] != 0:
+        split_pts = node_splits.cpu().numpy().flatten().astype(int).tolist()
+        if len(split_pts) == 0 or split_pts[0] != 0:
             split_pts = [0] + split_pts
         if split_pts[-1] != num_nodes:
             split_pts.append(num_nodes)
+        # Deduplicate and sort
+        split_pts = sorted(set(split_pts))
 
         # Merge small consecutive splits to reach ~max_segment_size
         segments = []
