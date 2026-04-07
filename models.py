@@ -338,7 +338,7 @@ class LayoutModel(nn.Module):
 
         for seg_start, seg_end in segments:
             # Get node indices for this segment
-            seg_mask = torch.zeros(num_nodes, dtype=torch.bool)
+            seg_mask = torch.zeros(num_nodes, dtype=torch.bool, device=node_feat.device)
             seg_mask[seg_start:seg_end] = True
 
             # Remap edge indices to segment-local
