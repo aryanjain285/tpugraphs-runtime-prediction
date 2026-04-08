@@ -142,7 +142,8 @@ def predict_layout(
                 else:
                     raise
 
-            ranked_indices = np.argsort(-scores)[:top_k]
+            # Layout needs ALL configs ranked (not just top-k)
+            ranked_indices = np.argsort(-scores)
             ranking_str = ";".join(str(i) for i in ranked_indices)
 
             results.append((f"{collection}:{graph_id}", ranking_str))
