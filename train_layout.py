@@ -38,6 +38,8 @@ def parse_args():
     parser.add_argument("--gnn_type", type=str, default=None, choices=["sage", "gatv2"])
     parser.add_argument("--loss_type", type=str, default=None,
                         choices=["pairwise", "listmle", "combined"])
+    parser.add_argument("--max_configs", type=int, default=None)
+    parser.add_argument("--num_pairs", type=int, default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--data_dir", type=str, default=None)
     return parser.parse_args()
@@ -115,6 +117,14 @@ def main():
         cfg.gnn_type = args.gnn_type
     if args.loss_type is not None:
         cfg.loss_type = args.loss_type
+    if args.max_configs is not None:
+        cfg.max_configs = args.max_configs
+    if args.num_pairs is not None:
+        cfg.num_pairs = args.num_pairs
+    
+    # Adjust SWA start to 90% of epochs if epochs were changed
+    if args.epochs is not None:
+        cfg.swa_start_epoch = max(1, int(cfg.epochs * 0.9))
 
     ensure_dirs()
     os.makedirs(cfg.save_dir, exist_ok=True)
