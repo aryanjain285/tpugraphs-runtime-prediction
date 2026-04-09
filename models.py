@@ -23,6 +23,41 @@ from config import NUM_OPCODES, NODE_FEAT_DIM, TILE_CONFIG_DIM, LAYOUT_CONFIG_DI
 # Building blocks
 # ──────────────────────────────────────────────────────────────
 
+class CrossConfigAttention(nn.Module):
+    """
+    Cross-config attention from 1st place solution.
+    Lets configs compare against each other during forward pass,
+    rather than scoring each config independently.
+    """
+    def __init__(self):
+        super().__init__()
+        self.temperature = nn.Parameter(torch.tensor(0.5))
+
+    def forward(self, x):
+        # x: (num_configs, num_nodes, hidden_dim) or (num_configs, hidden_dim)
+        scores = (x / self.temperature).softmax(dim=0)
+        return x * scores
+
+
+class SqueezeExcitation(nn.Module):
+    """
+    Channel-wise attention (Squeeze-and-Excitation) from 1st place solution.
+    Captures correlations between channels, suppresses less useful ones.
+    """
+    def __init__(self, dim: int, reduction: int = 8):
+        super().__init__()
+        self.fc = nn.Sequential(
+            nn.Linear(dim, dim // reduction),
+            nn.ReLU(),
+            nn.Linear(dim // reduction, dim),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x):
+        # x: (..., dim)
+        scale = self.fc(x)
+        return x * scale
+
 class OpcodeEmbedding(nn.Module):
     """Learnable embedding for HLO opcodes."""
 
@@ -239,22 +274,12 @@ class TileModel(nn.Module):
 
 class LayoutModel(nn.Module):
     """
-    Runtime prediction model for layout sub-collections.
-
-    Key difference from TileModel: configuration features are per-node
-    (at configurable nodes), not graph-level.
-
-    Pipeline:
-      1. GNN backbone produces node embeddings.
-      2. For each config:
-         a. At configurable nodes, concatenate node embedding with the
-            config's per-node features → project to hidden_dim.
-         b. Aggregate config-aware node embeddings → config-specific graph embed.
-         c. Also produce a config-agnostic graph embed from all nodes.
-         d. Concat both → MLP → scalar score.
-
-    This design lets the model capture both the global graph structure
-    and how specific layout choices at configurable nodes affect runtime.
+    Improved layout model with cross-config attention and SE blocks.
+    
+    Key improvements over baseline:
+    1. Vectorized config processing (no per-config loop)
+    2. Cross-config attention lets configs compare against each other
+    3. Squeeze-and-Excitation for channel-wise attention
     """
 
     def __init__(
@@ -278,6 +303,12 @@ class LayoutModel(nn.Module):
             nn.GELU(),
             nn.Dropout(dropout),
         )
+        
+        # Squeeze-and-Excitation on config embeddings
+        self.se = SqueezeExcitation(hidden_dim, reduction=8)
+        
+        # Cross-config attention
+        self.cross_config_attn = CrossConfigAttention()
 
         # Score head: config_aware_embed + global_embed → scalar
         self.score_head = nn.Sequential(
@@ -361,14 +392,8 @@ class LayoutModel(nn.Module):
         self, data: Data, max_segment_size: int = 5000
     ) -> torch.Tensor:
         """
-        Parameters
-        ----------
-        data : PyG Data object with fields x, edge_index, node_opcode,
-               topo_depth, node_config_ids, node_config_feat, node_splits.
-
-        Returns
-        -------
-        scores : (num_configs,) predicted scores.
+        Vectorized forward with cross-config attention.
+        Processes all configs together instead of one-by-one.
         """
         device = data.x.device
 
@@ -385,28 +410,34 @@ class LayoutModel(nn.Module):
         config_ids = data.node_config_ids.to(device)     # (nc,)
         config_feat = data.node_config_feat.to(device)   # (c, nc, 18)
         num_configs = config_feat.shape[0]
+        nc = config_ids.shape[0]
 
         # Gather embeddings at configurable nodes
         config_node_h = node_h[config_ids]  # (nc, hidden_dim)
 
-        scores_list = []
-        for j in range(num_configs):
-            # Per-config features at configurable nodes
-            cfg_j = config_feat[j]  # (nc, 18)
+        # Expand for all configs: (c, nc, hidden_dim)
+        config_node_h_expanded = config_node_h.unsqueeze(0).expand(num_configs, -1, -1)
 
-            # Concatenate node embedding with config features
-            combined = torch.cat([config_node_h, cfg_j], dim=-1)  # (nc, hidden_dim + 18)
-            proj = self.config_node_proj(combined)  # (nc, hidden_dim)
+        # Concatenate node embeddings with per-config features: (c, nc, hidden_dim + 18)
+        combined = torch.cat([config_node_h_expanded, config_feat], dim=-1)
 
-            # Config-aware embedding: mean over configurable nodes
-            config_embed = proj.mean(dim=0)  # (hidden_dim,)
+        # Project: (c, nc, hidden_dim)
+        proj = self.config_node_proj(combined)
+        
+        # Apply squeeze-excitation (channel attention)
+        proj = self.se(proj)
+        
+        # Apply cross-config attention: configs compare against each other
+        proj = self.cross_config_attn(proj)
 
-            # Combine with global embedding
-            final = torch.cat([global_embed, config_embed], dim=-1)  # (2 * hidden_dim,)
-            score = self.score_head(final)  # (1,)
-            scores_list.append(score)
+        # Mean over configurable nodes: (c, hidden_dim)
+        config_embeds = proj.mean(dim=1)
 
-        scores = torch.cat(scores_list, dim=0)  # (c,)
+        # Combine with global embedding
+        global_expanded = global_embed.unsqueeze(0).expand(num_configs, -1)  # (c, hidden_dim)
+        final = torch.cat([global_expanded, config_embeds], dim=-1)  # (c, 2*hidden_dim)
+        scores = self.score_head(final).squeeze(-1)  # (c,)
+
         return scores
 
 

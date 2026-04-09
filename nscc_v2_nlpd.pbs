@@ -1,0 +1,20 @@
+#!/bin/bash
+#PBS -N tpug_v2_nlpd
+#PBS -P 52001004
+#PBS -l select=1:ngpus=1
+#PBS -l walltime=06:00:00
+#PBS -j oe
+#PBS -o tpug_v2_nlpd.log
+
+cd $PBS_O_WORKDIR
+module load miniforge3
+eval "$(conda shell.bash hook)"
+conda activate tpugraphs
+
+echo "=== V2: NLP Default with feature norm + cross-config attention ==="
+nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null
+date
+
+python3 train_layout.py --source nlp --search default --epochs 50 --max_configs 1024 --num_pairs 128 2>&1
+
+echo "Done: $(date)"

@@ -209,7 +209,16 @@ class LayoutDataset:
     def __getitem__(self, idx: int) -> Data:
         d = _load_npz(self.files[idx])
 
-        node_feat = torch.from_numpy(d["node_feat"].astype(np.float32))
+        node_feat_raw = d["node_feat"].astype(np.float32)
+        
+        # Feature normalization (critical for convergence — per 1st place solution)
+        # Normalize continuous features (first 134 dims) per-graph
+        cont_feat = node_feat_raw[:, :134]
+        feat_mean = cont_feat.mean(axis=0, keepdims=True)
+        feat_std = cont_feat.std(axis=0, keepdims=True) + 1e-6
+        node_feat_raw[:, :134] = (cont_feat - feat_mean) / feat_std
+        
+        node_feat = torch.from_numpy(node_feat_raw)
         node_opcode = torch.from_numpy(d["node_opcode"].astype(np.int64))
         edge_index = torch.from_numpy(d["edge_index"].astype(np.int64).T)  # (2, m)
         num_nodes = node_feat.shape[0]
