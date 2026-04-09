@@ -15,10 +15,10 @@ echo "=== V2: XLA Layouts with feature norm + cross-config attention ==="
 nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null
 date
 
-python3 train_layout.py --source xla --search default --epochs 60 --max_configs 2048 --num_pairs 256 2>&1
+python3 train_layout.py --source xla --search default --epochs 60 --max_configs 512 --num_pairs 128 2>&1
 echo "--- xla:default done ---"
 
-python3 train_layout.py --source xla --search random --epochs 60 --max_configs 2048 --num_pairs 256 2>&1
+python3 train_layout.py --source xla --search random --epochs 60 --max_configs 512 --num_pairs 128 2>&1
 echo "--- xla:random done ---"
 
 echo "Done: $(date)"

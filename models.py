@@ -389,11 +389,10 @@ class LayoutModel(nn.Module):
         return all_node_h
 
     def forward(
-        self, data: Data, max_segment_size: int = 5000
+        self, data: Data, max_segment_size: int = 5000, config_chunk_size: int = 512
     ) -> torch.Tensor:
         """
-        Vectorized forward with cross-config attention.
-        Processes all configs together instead of one-by-one.
+        Forward with cross-config attention, processed in chunks to avoid OOM.
         """
         device = data.x.device
 
@@ -410,34 +409,40 @@ class LayoutModel(nn.Module):
         config_ids = data.node_config_ids.to(device)     # (nc,)
         config_feat = data.node_config_feat.to(device)   # (c, nc, 18)
         num_configs = config_feat.shape[0]
-        nc = config_ids.shape[0]
 
         # Gather embeddings at configurable nodes
         config_node_h = node_h[config_ids]  # (nc, hidden_dim)
 
-        # Expand for all configs: (c, nc, hidden_dim)
-        config_node_h_expanded = config_node_h.unsqueeze(0).expand(num_configs, -1, -1)
+        # Process configs in chunks to avoid OOM
+        all_scores = []
+        for start in range(0, num_configs, config_chunk_size):
+            end = min(start + config_chunk_size, num_configs)
+            chunk_feat = config_feat[start:end]  # (chunk, nc, 18)
+            chunk_size = chunk_feat.shape[0]
 
-        # Concatenate node embeddings with per-config features: (c, nc, hidden_dim + 18)
-        combined = torch.cat([config_node_h_expanded, config_feat], dim=-1)
+            # Expand node embeddings for this chunk
+            chunk_node_h = config_node_h.unsqueeze(0).expand(chunk_size, -1, -1)
 
-        # Project: (c, nc, hidden_dim)
-        proj = self.config_node_proj(combined)
-        
-        # Apply squeeze-excitation (channel attention)
-        proj = self.se(proj)
-        
-        # Apply cross-config attention: configs compare against each other
-        proj = self.cross_config_attn(proj)
+            # Concatenate and project
+            combined = torch.cat([chunk_node_h, chunk_feat], dim=-1)
+            proj = self.config_node_proj(combined)
+            
+            # Squeeze-excitation
+            proj = self.se(proj)
+            
+            # Cross-config attention within chunk
+            proj = self.cross_config_attn(proj)
 
-        # Mean over configurable nodes: (c, hidden_dim)
-        config_embeds = proj.mean(dim=1)
+            # Mean over configurable nodes
+            config_embeds = proj.mean(dim=1)  # (chunk, hidden_dim)
 
-        # Combine with global embedding
-        global_expanded = global_embed.unsqueeze(0).expand(num_configs, -1)  # (c, hidden_dim)
-        final = torch.cat([global_expanded, config_embeds], dim=-1)  # (c, 2*hidden_dim)
-        scores = self.score_head(final).squeeze(-1)  # (c,)
+            # Score
+            global_expanded = global_embed.unsqueeze(0).expand(chunk_size, -1)
+            final = torch.cat([global_expanded, config_embeds], dim=-1)
+            chunk_scores = self.score_head(final).squeeze(-1)
+            all_scores.append(chunk_scores)
 
+        scores = torch.cat(all_scores, dim=0)  # (c,)
         return scores
 
 

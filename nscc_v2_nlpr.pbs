@@ -15,6 +15,6 @@ echo "=== V2: NLP Random with feature norm + cross-config attention ==="
 nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null
 date
 
-python3 train_layout.py --source nlp --search random --epochs 50 --max_configs 1024 --num_pairs 128 2>&1
+python3 train_layout.py --source nlp --search random --epochs 50 --max_configs 512 --num_pairs 128 2>&1
 
 echo "Done: $(date)"
