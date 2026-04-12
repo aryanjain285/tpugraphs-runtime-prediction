@@ -1,0 +1,23 @@
+{
+  "hidden_dim": 96,
+  "op_embed_dim": 32,
+  "type_embed_dim": 4,
+  "layout_value_embed_dim": 4,
+  "use_graph_global_pool": true,
+  "num_gnn_layers": 4,
+  "dropout": 0.05,
+  "lr": 0.0002,
+  "weight_decay": 1e-05,
+  "epochs": 60,
+  "early_stopping": 20,
+  "train_config_batch": 32,
+  "eval_config_batch": 32,
+  "pairwise_samples": 1024,
+  "chunk_batching": "contiguous",
+  "shift_stride": null,
+  "grad_clip": 1.0,
+  "name": "gnn_nlp_random",
+  "pairwise_weight": 1.0,
+  "pairwise_mode": "random",
+  "amp": true
+}

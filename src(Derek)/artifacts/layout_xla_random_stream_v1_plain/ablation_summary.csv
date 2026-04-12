@@ -1,0 +1,4 @@
+experiment,type,loaded_from_cache,top1_slowdown,top5_slowdown,top10_slowdown,top100_slowdown,kendall_tau,alpha_best_gnn,gnn_components,xgb_component
+gnn_xla_random,gnn,False,1.101153816495623,1.018177798816136,1.0167093447276525,1.0076159409114294,0.5933259508911625,,,
+ensemble_gnn_xla_random_plus_xgb_pairwise,ensemble,False,1.101153816495623,1.018177798816136,1.0167093447276525,1.0076159409114294,0.5928953348111914,1.0,gnn_xla_random,xgb_pairwise
+xgb_pairwise,xgb,False,1.1375782319477625,1.1051082100187029,1.0939989600862776,1.0016520534242903,0.18154396538128206,,,

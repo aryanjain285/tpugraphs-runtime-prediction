@@ -1,0 +1,6 @@
+{
+  "base": ".",
+  "output_dir": "artifacts\\kaggle_submissions",
+  "files": [],
+  "merged_files": []
+}

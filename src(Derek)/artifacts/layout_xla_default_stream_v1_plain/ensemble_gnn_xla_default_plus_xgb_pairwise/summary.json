@@ -1,0 +1,12 @@
+{
+  "top1_slowdown": 1.0022966691425867,
+  "top5_slowdown": 1.001098530633109,
+  "top10_slowdown": 1.0010934386934554,
+  "top100_slowdown": 1.0003160408564977,
+  "kendall_tau": 0.32522390870704987,
+  "alpha_best_gnn": 0.9500000000000001,
+  "gnn_components": [
+    "gnn_xla_default"
+  ],
+  "xgb_component": "xgb_pairwise"
+}

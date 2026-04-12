@@ -1,0 +1,3 @@
+experiment,type,loaded_from_cache,top1_slowdown,top5_slowdown,top10_slowdown,top100_slowdown,kendall_tau,alpha_best_gnn,gnn_components,xgb_component,dataset,out_dir,gpu_id
+gnn_xla_default,gnn,True,1.004327382360186,1.0042983634131295,1.0042653935296195,1.0003070150102888,0.3259306620639616,,,,xla_default,/scratch/users/ntu/dere0006/TPU/artifacts/layout_xla_default_stream_v1_plain,0
+gnn_nlp_default,gnn,False,1.001762706041336,1.0013005614280701,1.0009263575077056,1.0004799962043762,0.525873367353092,,,,nlp_default,/scratch/users/ntu/dere0006/TPU/artifacts/layout_nlp_default_stream_v1_plain,0

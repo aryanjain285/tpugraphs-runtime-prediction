@@ -1,0 +1,2 @@
+experiment,type,loaded_from_cache,alpha_best_gnn,gnn_components,xgb_component,top1_slowdown,top5_slowdown,top10_slowdown,top100_slowdown,kendall_tau
+ensemble_gnn_nlp_random_plus_xgb_pairwise,ensemble,False,1.0,gnn_nlp_random,xgb_pairwise,1.0039962589740754,1.0013754725456239,1.0009975910186768,1.0,0.896490763061198
